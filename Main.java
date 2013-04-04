@@ -13,6 +13,7 @@ import com.amazonaws.regions.Regions;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.Bucket;
+import com.amazonaws.services.s3.transfer.*;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.ListObjectsRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
@@ -43,20 +44,19 @@ class ObjectNode extends DefaultMutableTreeNode {
     }
     public String toString() {
         String s = data.getKey();
-        System.out.println(s);
         int tmp = s.length() - nodeType;
         int t = s.lastIndexOf('/', tmp - 1);
-        System.out.println(t + " " + tmp);
         return s.substring(t + 1, tmp);
     }
 }
 
-class DataTree extends JTree implements TreeWillExpandListener{
+class DataTree extends JTree implements TreeWillExpandListener, MouseListener {
     AWSCredentials myCredentials = new BasicAWSCredentials("AKIAJJFM2OICN5ORSXFQ", "dwG4N7uwByASYD/d93RB9KT8EhbyMF/gATOnGfCE");
     AmazonS3 s3client = new AmazonS3Client(myCredentials);
     DataTree() {
         this.setRootVisible(true);
         this.addTreeWillExpandListener(this);
+        this.addMouseListener(this);
         DefaultMutableTreeNode treeRoot = new DefaultMutableTreeNode("Buckets");
         DefaultTreeModel e3Model = new DefaultTreeModel(treeRoot);
         this.setModel(e3Model);
@@ -64,6 +64,74 @@ class DataTree extends JTree implements TreeWillExpandListener{
         for (Bucket i : bucketList) {
             treeRoot.add(new BucketNode(i));
         }
+    }
+    public void mouseExited(MouseEvent e) {
+    }
+    public void mouseEntered(MouseEvent e) {
+    }
+    public void mouseReleased(MouseEvent e) {
+        if (e.isPopupTrigger()) {
+            JTree tree = (JTree)e.getComponent();
+            final TreePath path = tree.getPathForLocation(e.getX(), e.getY());
+            tree.setSelectionPath(path);
+            Object node = path.getLastPathComponent();
+            if (node instanceof BucketNode) {
+            } else if (node instanceof ObjectNode) {
+                final ObjectNode objectNode = (ObjectNode)node;
+                if (objectNode.nodeType == 0) { // file
+                    JPopupMenu menu = new JPopupMenu();
+                    JMenuItem iDelete = new JMenuItem("Delete");
+                    iDelete.addActionListener(new ActionListener() {
+                    public void actionPerformed(ActionEvent e) {
+                        String key = objectNode.data.getKey();
+                        System.out.println(key);
+                        BucketNode bucketNode = (BucketNode)path.getPathComponent(1);
+                        s3client.deleteObject(bucketNode.data.getName(), key);
+                        System.out.println(key);
+                    }});
+                    JMenuItem iCut = new JMenuItem("Cut");
+                    JMenuItem iDownload = new JMenuItem("Download");
+                    iDownload.addActionListener(new ActionListener() {
+                    public void actionPerformed(ActionEvent e) {
+                        TransferManager trans = new TransferManager(s3client);
+                        JFileChooser fc = new JFileChooser();
+                        int res = fc.showSaveDialog(null);
+                        if (res == JFileChooser.APPROVE_OPTION) {
+                            File file = fc.getSelectedFile();
+                            String key = objectNode.data.getKey();
+                            BucketNode bucketNode = (BucketNode)path.getPathComponent(1);
+                            trans.download(bucketNode.data.getName(), key, file);
+                        }
+                    }});
+                    menu.add(iDelete);
+                    menu.add(iCut);
+                    menu.add(iDownload);
+                    menu.show(tree, e.getX(), e.getY());
+                } else { // dir
+                    JPopupMenu menu = new JPopupMenu();
+                    JMenuItem iUpload = new JMenuItem("Upload");
+                    iUpload.addActionListener(new ActionListener() {
+                    public void actionPerformed(ActionEvent e) {
+                        TransferManager trans = new TransferManager(s3client);
+                        JFileChooser fc = new JFileChooser();
+                        int res = fc.showOpenDialog(null);
+                        if (res == JFileChooser.APPROVE_OPTION) {
+                            File file = fc.getSelectedFile();
+                            String name = file.getName();
+                            String key = objectNode.data.getKey() + name;
+                            BucketNode bucketNode = (BucketNode)path.getPathComponent(1);
+                            trans.upload(bucketNode.data.getName(), key, file);
+                        }
+                    }});
+                    menu.add(iUpload);
+                    menu.show(tree, e.getX(), e.getY());
+                }
+            }
+        }
+    }
+    public void mousePressed(MouseEvent e) {
+    }
+    public void mouseClicked(MouseEvent e) {
     }
     public void treeWillCollapse(TreeExpansionEvent e) {
     }
@@ -105,13 +173,13 @@ class MainFrame extends JFrame{
     static DataTree dataTree = new DataTree();
     MainFrame() {
         this.setTitle("xxxx");
-        this.setSize(800, 400);
+        this.setSize(400, 300);
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         this.setLayout(null);
         this.setVisible(true);
         JScrollPane js = new JScrollPane(dataTree);
         js.setSize(300, 200);
-        js.setLocation(450, 70);
+        js.setLocation(50, 30);
         this.add(js);
     }
 }

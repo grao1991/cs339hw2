@@ -6,22 +6,16 @@ import java.awt.Toolkit;
 import javax.swing.event.*;
 import javax.swing.tree.*;
 import java.awt.Font;
+import java.awt.Cursor;
 import javax.swing.text.*;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.*;
-import com.amazonaws.regions.Region;
-import com.amazonaws.regions.Regions;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.Bucket;
 import com.amazonaws.services.s3.transfer.*;
 import com.amazonaws.services.s3.transfer.model.*;
-import com.amazonaws.services.s3.model.GetObjectRequest;
-import com.amazonaws.services.s3.model.ListObjectsRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
-import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 
@@ -125,10 +119,12 @@ class DataTree extends JTree implements TreeWillExpandListener, MouseListener {
                         key += ((ObjectNode)path.getLastPathComponent()).data.getKey();
                     }
                     key += clipboard.getLastPathComponent().toString();
+                    Main.jf.setCursor(new Cursor(Cursor.WAIT_CURSOR));
                     s3client.copyObject(clipboard.getPathComponent(1).toString(), ((ObjectNode)clipboard.getLastPathComponent()).data.getKey(), path.getPathComponent(1).toString(), key);
                     s3client = new AmazonS3Client(myCredentials);
                     s3client.deleteObject(clipboard.getPathComponent(1).toString(), ((ObjectNode)clipboard.getLastPathComponent()).data.getKey());
                     clipboard = null;
+                    Main.jf.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
                     e3Model.nodeStructureChanged(treeRoot);
                 }
             });
@@ -149,8 +145,10 @@ class DataTree extends JTree implements TreeWillExpandListener, MouseListener {
             iDelete.addActionListener(new ActionListener() {
                 public void actionPerformed(ActionEvent e) {
                     s3client = new AmazonS3Client(myCredentials);
+                    Main.jf.setCursor(new Cursor(Cursor.WAIT_CURSOR));
                     s3client.deleteObject(path.getPathComponent(1).toString(), ((ObjectNode)node).data.getKey());
                     JOptionPane.showMessageDialog(null, "Finish");
+                    Main.jf.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
                     e3Model.nodeStructureChanged(treeRoot);
                     clipboard = null;
                 }
@@ -204,6 +202,7 @@ class DataTree extends JTree implements TreeWillExpandListener, MouseListener {
     public void treeWillCollapse(TreeExpansionEvent e) {
     }
     public void treeWillExpand(TreeExpansionEvent e) {
+        Main.jf.setCursor(new Cursor(Cursor.WAIT_CURSOR));
         TreePath path = e.getPath();
         Object node = path.getLastPathComponent();
         if (node instanceof BucketNode) {
@@ -235,6 +234,7 @@ class DataTree extends JTree implements TreeWillExpandListener, MouseListener {
                 }
             }
         }
+        Main.jf.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
     }
 }
 
@@ -279,9 +279,11 @@ class LoginButton extends JButton implements ActionListener {
         this.addActionListener(this);
     }
     public void actionPerformed(ActionEvent e) {
+        Main.jf.setCursor(new Cursor(Cursor.WAIT_CURSOR));
         Main.jf.dataTree = new DataTree(Main.jf.af.getText(), Main.jf.sf.getText());
         Main.jf.js.setViewportView(Main.jf.dataTree);
         Main.jf.outButton.setEnabled(true);
+        Main.jf.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
         this.setEnabled(false);
     }
 }
@@ -350,6 +352,10 @@ class MainFrame extends JFrame{
         this.setSize(480, 300);
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         this.setLayout(null);
+        Toolkit tk = Toolkit.getDefaultToolkit();
+        int width = tk.getScreenSize().width;
+        int height = tk.getScreenSize().height;
+        this.setLocation((tk.getScreenSize().width - 480) / 2, (tk.getScreenSize().height - 300) / 2);
         JLabel jl0 = new JLabel("AWSAccessKeyID");
         JLabel jl1 = new JLabel("AWSSecretKey");
         jl0.setLocation(20, 25);
